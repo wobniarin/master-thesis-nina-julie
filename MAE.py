@@ -1,10 +1,9 @@
 import pandas as pd
 import pyarrow.parquet as pq
-import numpy as np
 
 file_path_predicted = 'data/target_and_predicted/US-CAL-BANC_predicted.parquet'
+file_path_predicted = 'data/target_and_predicted/US-CAL-BANC_predicted.parquet'
 table = pq.read_table(file_path_predicted)
-#df.to_csv('filename.csv')
 df_predicted = table.to_pandas()
 print(df_predicted.head)
 
