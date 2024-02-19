@@ -15,3 +15,5 @@ mae = df_predicted["power_production_solar_avg"].sub(df_target["power_production
 
 print("Mean Absolute Error (MAE):", mae)
 
+
+
