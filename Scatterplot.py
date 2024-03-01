@@ -21,6 +21,7 @@ def split_horizon(predicted_file, target_file, horizon):
 
     return df_predicted, df_target
 
+
 def plot(x_value, y_value):
     max_y = max(y_value)
     max_x = max(x_value)
@@ -31,36 +32,53 @@ def plot(x_value, y_value):
     plt.xlabel('Predicted')
     print(plt.show())
 
-def scatter(predicted_file, target_file):
+
+def scatter_wind(predicted_file, target_file):
+    predicted_file = predicted_file.copy()
+    target_file = target_file.copy()
+
     # Set "target_time" as index for both DataFrames
     predicted_file.set_index(['target_time'], inplace=True)
     target_file.set_index(['target_time'], inplace=True)
     
     df_predicted_wind = predicted_file.dropna(subset=["power_production_wind_avg"])
     df_target_wind = target_file.dropna(subset=["power_production_wind_avg"])
+    
+    # Reindex or align one DataFrame to match the other
     df_target_wind = df_target_wind.reindex(df_predicted_wind.index)
+    
+    x = df_predicted_wind["power_production_wind_avg"].values
+    y = df_target_wind["power_production_wind_avg"].values
+    plot(x,y)
+
+
+def scatter_solar(predicted_file, target_file):
+    predicted_file = predicted_file.copy()
+    target_file = target_file.copy()
+
+    # Set "target_time" as index for both DataFrames
+    predicted_file.set_index(['target_time'], inplace=True)
+    target_file.set_index(['target_time'], inplace=True)
 
     df_predicted_solar = predicted_file.dropna(subset=["power_production_solar_avg"])
     df_target_solar = target_file.dropna(subset=["power_production_solar_avg"])
 
     # Reindex or align one DataFrame to match the other
     df_target_solar = df_target_solar.reindex(df_predicted_solar.index)
-    
-    #wind
-    x = df_predicted_wind["power_production_wind_avg"].values
-    y = df_target_wind["power_production_wind_avg"].values
-    plot(x,y)
 
-    #solar
     x = df_predicted_solar["power_production_solar_avg"].values
     y = df_target_solar["power_production_solar_avg"].values
     plot(x,y)
 
+if __name__ == "__main__": #So code only runs when in this file, not when imported.
+    for predicted_file, target_file in target_predicted_files.items():
+        df_predicted_12, df_target_12 = split_horizon(predicted_file, target_file, 12)
+        scatter_wind(df_predicted_12, df_target_12)
+        scatter_solar(df_predicted_12, df_target_12)
 
-for predicted_file, target_file in target_predicted_files.items():
-    df_predicted_12, df_target_12 = split_horizon(predicted_file, target_file, 12)
-    scatter(df_predicted_12, df_target_12)
+        df_predicted_24, df_target_24 = split_horizon(predicted_file, target_file, 24)
+        scatter_wind(df_predicted_24, df_target_24)
+        scatter_solar(df_predicted_24, df_target_24)
 
-    df_predicted_24, df_target_24 = split_horizon(predicted_file, target_file, 24)
-    scatter(df_predicted_24, df_target_24)
+
 
