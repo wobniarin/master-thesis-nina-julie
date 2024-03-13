@@ -13,7 +13,7 @@ target_predicted_files = {
 def split_horizon(predicted_file, target_file, horizon):
     table = pq.read_table(predicted_file)
     df_predicted = table.to_pandas()
-    df_predicted = df_predicted[df_predicted["horizon"] == horizon].copy()
+    df_predicted = df_predicted[df_predicted["horizon"] == horizon].copy() #måske slet at det er en kopi?
 
     table = pq.read_table(target_file)
     df_target = table.to_pandas()
@@ -30,6 +30,8 @@ def plot(x_value, y_value):
     plt.scatter(x_value, y_value, s=10)
     plt.ylabel('Target')
     plt.xlabel('Predicted')
+    plt.xlim(0, 28000)
+    plt.ylim(0, 28000)
     print(plt.show())
 
 
@@ -51,6 +53,35 @@ def scatter_wind(predicted_file, target_file):
     y = df_target_wind["power_production_wind_avg"].values
     plot(x,y)
 
+def scatter_wind_monthly(predicted_file, target_file, month):
+    predicted_file = predicted_file.copy()
+    target_file = target_file.copy()
+
+    # Set "target_time" as index for both DataFrames
+    predicted_file.set_index(['target_time'], inplace=True)
+    target_file.set_index(['target_time'], inplace=True)
+    
+    df_predicted_wind = predicted_file.dropna(subset=["power_production_wind_avg"])
+    df_target_wind = target_file.dropna(subset=["power_production_wind_avg"])
+    
+    # Reindex or align one DataFrame to match the other
+    df_target_wind = df_target_wind.reindex(df_predicted_wind.index)
+    
+    # Convert the index back to a column
+    df_predicted_wind.reset_index(inplace=True)
+    df_target_wind.reset_index(inplace=True)
+
+    df_predicted_wind['target_time'] = pd.to_datetime(df_predicted_wind['target_time'], unit='ms')
+    df_target_wind['target_time'] = pd.to_datetime(df_target_wind['target_time'], unit='ms')
+
+    # Filter the data for the specified month
+    df_predicted_wind = df_predicted_wind[df_predicted_wind['target_time'].dt.month == month]
+    df_target_wind = df_target_wind[df_target_wind['target_time'].dt.month == month]
+
+    x = df_predicted_wind["power_production_wind_avg"].values
+    y = df_target_wind["power_production_wind_avg"].values
+
+    plot(x,y)
 
 def scatter_solar(predicted_file, target_file):
     predicted_file = predicted_file.copy()
@@ -73,12 +104,13 @@ def scatter_solar(predicted_file, target_file):
 if __name__ == "__main__": #So code only runs when in this file, not when imported.
     for predicted_file, target_file in target_predicted_files.items():
         df_predicted_12, df_target_12 = split_horizon(predicted_file, target_file, 12)
-        scatter_wind(df_predicted_12, df_target_12)
-        scatter_solar(df_predicted_12, df_target_12)
+        scatter_wind_monthly(df_predicted_12, df_target_12, 1)
+        #scatter_wind(df_predicted_12, df_target_12)
+        #scatter_solar(df_predicted_12, df_target_12)
 
-        df_predicted_24, df_target_24 = split_horizon(predicted_file, target_file, 24)
-        scatter_wind(df_predicted_24, df_target_24)
-        scatter_solar(df_predicted_24, df_target_24)
+        #df_predicted_24, df_target_24 = split_horizon(predicted_file, target_file, 24)
+        #scatter_wind(df_predicted_24, df_target_24)
+        #scatter_solar(df_predicted_24, df_target_24)
 
 
 
