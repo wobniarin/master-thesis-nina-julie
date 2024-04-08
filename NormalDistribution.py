@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import norm
+from scipy.stats import skew, kurtosis
 
 target_predicted_files = {
     'data/target_and_predicted/US-CAL-CISO_predicted.parquet': 'data/target_and_predicted/US-CAL-CISO_target.parquet',
@@ -31,11 +32,23 @@ def split_solar_wind(list_files):
         predicted = pq.read_table(predicted).to_pandas()
         target = pq.read_table(target).to_pandas()
 
+        # Set "target_time" as index for both DataFrames
+        predicted.set_index(['target_time'], inplace=True)
+        target.set_index(['target_time'], inplace=True)
+
+        filtered_target = target[target['power_production_solar_avg'] != 0]
+        filtered_predicted = predicted.loc[filtered_target.index]    
+
+        # Drop nan values only for specified columns
+        cols_to_drop_nan = ["power_production_solar_avg", "power_production_wind_avg"]
+        for col in cols_to_drop_nan:
+            filtered_predicted = filtered_predicted.dropna(subset=[col])    
+
         solar_wind_dict = {
-            'predicted_solar': predicted["power_production_solar_avg"].values,
-            'target_solar': target["power_production_solar_avg"].values,
-            'predicted_wind': predicted["power_production_wind_avg"].values,
-            'target_wind': target["power_production_wind_avg"].values
+            'predicted_solar': filtered_predicted["power_production_solar_avg"].values,
+            'target_solar': filtered_target["power_production_solar_avg"].values,
+            'predicted_wind': filtered_predicted["power_production_wind_avg"].values,
+            'target_wind': filtered_target["power_production_wind_avg"].values
         }
         solar_wind_list.append(solar_wind_dict)
 
@@ -43,9 +56,10 @@ def split_solar_wind(list_files):
 
 
 def plot_normal_distributions(data_list):
-    for data_dict in data_list:
-        plt.figure(figsize=(10, 5))
+    # Determine common axis limits
 
+    
+    for data_dict in data_list:
         # Plot for solar
         plt.subplot(1, 2, 1)  # 1 row, 2 columns, 1st subplot
         sns.kdeplot(data_dict['predicted_solar'], label='Predicted Solar', color='red')
@@ -54,6 +68,10 @@ def plot_normal_distributions(data_list):
         plt.xlabel('Power Production')
         plt.ylabel('Density')
         plt.legend()
+        print("Skewness - Predicted Solar:", skew(data_dict['predicted_solar']))
+        print("Kurtosis - Predicted Solar:", kurtosis(data_dict['predicted_solar']))
+        print("Skewness - Target Solar:", skew(data_dict['target_solar']))
+        print("Kurtosis - Target Solar:", kurtosis(data_dict['target_solar']))
 
         # Plot for wind
         plt.subplot(1, 2, 2)  # 1 row, 2 columns, 2nd subplot
@@ -63,6 +81,10 @@ def plot_normal_distributions(data_list):
         plt.xlabel('Power Production')
         plt.ylabel('Density')
         plt.legend()
+        print("Skewness - Predicted Wind:", skew(data_dict['predicted_wind']))
+        print("Kurtosis - Predicted Wind:", kurtosis(data_dict['predicted_wind']))
+        print("Skewness - Target Wind:", skew(data_dict['target_wind']))
+        print("Kurtosis - Target Wind:", kurtosis(data_dict['target_wind']))
 
         plt.tight_layout()
         plt.show()
