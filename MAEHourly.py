@@ -15,6 +15,11 @@ timezone_mapping = {
     'US-TEX-ERCO': 'America/Chicago',      # Texas Time Zone
 }
 
+zone_capacity_gw = {
+    'US-CAL-CISO': 19.7,  # California capacity in GW
+    'US-TEX-ERCO': 13.5,  # Texas capacity in GW
+}
+
 def convert_to_local_time(df, zone_key):
     df['target_time'] = pd.to_datetime(df['target_time'], unit='ms', utc=True)
     local_timezone = pytz.timezone(timezone_mapping[zone_key])
@@ -36,23 +41,29 @@ def visualize_hourly_seasonality(predicted_file, target_file, horizon, power_typ
     df_predicted = pq.read_table(predicted_file).to_pandas()
     zone = df_predicted['zone_key'].iloc[0]
     df_combined = split_horizon(predicted_file, target_file, horizon)
+    
+    # Calculate error and absolute error
     df_combined['error'] = df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']
     df_combined['abs_error'] = df_combined['error'].abs()
+    
+    # Normalize the absolute error by the capacity for the zone
+    capacity_gw = zone_capacity_gw[zone]  # Get capacity in kW
+    df_combined['normalized_abs_error'] = df_combined['abs_error'] / capacity_gw
+    
     df_combined['hour'] = df_combined['target_time'].dt.hour.astype(int)
-    error_by_hour = df_combined.groupby('hour')['abs_error'].mean().reindex(range(0, 24)).sort_index()
+    error_by_hour = df_combined.groupby('hour')['normalized_abs_error'].mean().reindex(range(0, 24)).sort_index()
 
-    # Plotting
+    # Plotting adjustments for normalized error
     plt.figure(figsize=(12, 6))
-    # Append the first hour's data to the end for a continuous plot
     if 0 in error_by_hour.index:
         error_by_hour.loc[24] = error_by_hour.loc[0]
     error_by_hour.sort_index(inplace=True)
     plt.plot(error_by_hour.index, error_by_hour, marker='o', linestyle='-', color='blue')
-    plt.xticks(list(range(0, 25)))  # Set x-ticks to ensure all hours, including the appended '24', are shown
-    plt.title(f'Average Hourly MAE for {power_type.capitalize()} Power\nZone: {zone}, Horizon: {horizon}')
+    plt.xticks(list(range(0, 25)))
+    plt.title(f'Average Hourly Normalized MAE for {power_type.capitalize()} Power\nZone: {zone}, Horizon: {horizon}')
     plt.xlabel('Hour of Day')
-    plt.ylabel('Mean Absolute Error (kWh)')
-    plt.ylim(0, 2500)
+    plt.ylabel('Normalized MAE (MAE divided by capacity)')
+    plt.ylim(0)  # Adjust as needed based on normalized error values
     plt.grid(True)
     plt.tight_layout()
     plt.show()

@@ -3,7 +3,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 import matplotlib.pyplot as plt
 
 # Load your time series data
-df_combined = pd.read_parquet('data/target_and_predicted/US-CAL-CISO_target.parquet')
+df_combined = pd.read_parquet('data/target_and_predicted/US-CAL-CISO_predicted.parquet')
 df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
 df_combined.set_index('target_time', inplace=True)
 df_combined.sort_index(inplace=True)
@@ -37,6 +37,7 @@ plt.title('Residuals')
 plt.subplot(414)
 plt.plot(df_combined['power_production_wind_avg'])
 plt.title('Observed')
+plt.ylim(-200, 6200)
 
 plt.tight_layout()
 plt.show()
