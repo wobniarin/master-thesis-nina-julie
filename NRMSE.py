@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import pyarrow.parquet as pq
 import pandas as pd
 import pytz
+import numpy as np  # Make sure to import NumPy for sqrt function
+
 
 # Dictionary mapping predicted file paths to target file paths
 target_predicted_files = {
@@ -47,34 +49,35 @@ def visualize_hourly_seasonality(predicted_file, target_file, horizon, power_typ
     zone = df_predicted['zone_key'].iloc[0]
     df_combined = split_horizon(predicted_file, target_file, horizon)
     
-    # Calculate error and absolute error
-    df_combined['error'] = df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']
-    df_combined['abs_error'] = df_combined['error'].abs()
+    # Calculate squared error
+    df_combined['squared_error'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']) ** 2
     
-    # Normalize the absolute error by the capacity for the zone
-    capacity_gw = zone_wind_capacity_gw[zone]  # Get capacity in kW
-    df_combined['normalized_abs_error'] = df_combined['abs_error'] / capacity_gw
-    
+    # Determine the correct capacity based on the power type
+    if power_type == 'wind':
+        capacity_gw = zone_wind_capacity_gw[zone]
+    else:  # Assuming solar if not wind
+        capacity_gw = zone_solar_capacity_gw[zone]
+
     df_combined['hour'] = df_combined['target_time'].dt.hour.astype(int)
-    error_by_hour = df_combined.groupby('hour')['normalized_abs_error'].mean().reindex(range(0, 24)).sort_index()
+    # Calculate RMSE for each hour, then divide by capacity
+    rmse_by_hour = df_combined.groupby('hour')['squared_error'].mean().apply(np.sqrt) / capacity_gw
+    rmse_by_hour = rmse_by_hour.reindex(range(0, 24)).sort_index()
 
+    # Output the RMSE divided by capacity for each hour
+    print(f"RMSE/Capacity by Hour for {zone} - {power_type.capitalize()} Power, Horizon: {horizon}")
+    for hour, rmse in rmse_by_hour.items():
+        print(f"Hour {hour}: {rmse:.4f}")
 
- # Output the normalized MAE for each hour
-    print(f"Normalized MAE by Hour for {zone} - {power_type.capitalize()} Power, Horizon: {horizon}")
-    for hour, mae in error_by_hour.items():
-        print(f"Hour {hour}: {mae:.4f}")
-
-    # Plotting adjustments for normalized error
+    # Plotting
     plt.figure(figsize=(12, 6))
-    if 0 in error_by_hour.index:
-        error_by_hour.loc[24] = error_by_hour.loc[0]
-    error_by_hour.sort_index(inplace=True)
-    plt.plot(error_by_hour.index, error_by_hour, marker='o', linestyle='-', color='blue')
+    if 0 in rmse_by_hour.index:
+        rmse_by_hour.loc[24] = rmse_by_hour.loc[0]
+    rmse_by_hour.sort_index(inplace=True)
+    plt.plot(rmse_by_hour.index, rmse_by_hour, marker='o', linestyle='-', color='blue')
     plt.xticks(list(range(0, 25)))
-    plt.title(f'Average Hourly Normalized MAE for {power_type.capitalize()} Power\nZone: {zone}, Horizon: {horizon}')
+    plt.title(f'Average Hourly RMSE Divided by Capacity for {power_type.capitalize()} Power\nZone: {zone}, Horizon: {horizon}')
     plt.xlabel('Hour of Day')
-    plt.ylabel('Normalized MAE (MAE divided by capacity)')
-    plt.ylim(0)  # Adjust as needed based on normalized error values
+    plt.ylabel('RMSE Divided by Capacity')
     plt.grid(True)
     plt.tight_layout()
     plt.show()

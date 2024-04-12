@@ -25,11 +25,13 @@ def split_horizon(predicted_file, target_file, horizon):
 
     # Merge the predicted and target dataframes on 'target_time'
     df_combined = pd.merge(df_predicted, df_target, on='target_time', suffixes=('_pred', '_target'))
+    print(df_combined)
     return df_combined
+    
 
 def visualize_weekly_data(predicted_file, target_file, horizon, power_type='wind', week_start='2023-09-04'):
     df_combined = split_horizon(predicted_file, target_file, horizon)
-    zone = df_combined['zone_key'].iloc[0] 
+    zone = df_combined['zone_key_pred'].iloc[0] 
     
     # Convert 'week_start' to a timezone-aware datetime object
     week_start_date = pd.to_datetime(week_start).tz_localize('UTC')
@@ -46,7 +48,7 @@ def visualize_weekly_data(predicted_file, target_file, horizon, power_type='wind
     ]:
         plt.plot(df_week['target_time'], df_week[column_name], marker='o', linestyle='-', color=color, label=label)
     
-    plt.title(f'Hourly {power_type.capitalize()} Power Production')
+    plt.title(f'Intermittency for {power_type.capitalize()} Power\nZone: {zone}')
     plt.xlabel('Time')
     plt.ylabel('GWh')
     plt.grid(True)
@@ -64,5 +66,5 @@ def visualize_weekly_data(predicted_file, target_file, horizon, power_type='wind
 
 # Loop over each pair of predicted and target files, visualizing the data
 for predicted_file, target_file in target_predicted_files.items():
-    visualize_weekly_data(predicted_file, target_file, 12, 'solar', week_start='2023-09-04')
-    visualize_weekly_data(predicted_file, target_file, 24, 'solar', week_start='2023-09-04')
+    visualize_weekly_data(predicted_file, target_file, 12, 'wind', week_start='2023-09-04')
+    visualize_weekly_data(predicted_file, target_file, 24, 'wind', week_start='2023-09-04')
