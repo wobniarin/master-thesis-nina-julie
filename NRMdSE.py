@@ -42,48 +42,37 @@ def split_horizon(predicted_file, target_file, horizon):
     df_predicted = df_predicted[df_predicted["horizon"] == horizon].copy()
     df_target = df_target[df_target["horizon"] == horizon].copy()
     df_combined = pd.merge(df_predicted, df_target, on='target_time', suffixes=('_pred', '_target'))
+    start_date = pd.Timestamp('2023-08-01', tz=timezone_mapping[zone_key])
+    end_date = pd.Timestamp('2023-08-14', tz=timezone_mapping[zone_key])
+    df_combined = df_combined[(df_combined['target_time'] >= start_date) & (df_combined['target_time'] <= end_date)]
     return df_combined
 
-def visualize_hourly_seasonality(predicted_file, target_file, horizon, power_type='wind'):
-    df_predicted = pq.read_table(predicted_file).to_pandas()
-    zone = df_predicted['zone_key'].iloc[0]
+def visualize_daily_nrmse(predicted_file, target_file, horizon, power_type='wind'):
     df_combined = split_horizon(predicted_file, target_file, horizon)
-    
-    # Calculate squared error
-    df_combined['squared_error'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']) ** 2
-    
-    # Determine the correct capacity based on the power type
-    if power_type == 'wind':
-        capacity_gw = zone_wind_capacity_gw[zone]
-    else:  # Assuming solar if not wind
-        capacity_gw = zone_solar_capacity_gw[zone]
+    zone = df_combined['zone_key_pred'].iloc[0]
 
-    df_combined['hour'] = df_combined['target_time'].dt.hour.astype(int)
-    # Calculate Root Median Squared Error (RMSdE) for each hour, then divide by capacity
-    rmsde_by_hour = df_combined.groupby('hour')['squared_error'].median().apply(np.sqrt) / capacity_gw
-    rmsde_by_hour = rmsde_by_hour.reindex(range(0, 24)).sort_index()
+    if not pd.api.types.is_datetime64_any_dtype(df_combined.index):
+        df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
+        df_combined.set_index('target_time', inplace=True)
 
-    # Output the RMSdE divided by capacity for each hour
-    print(f"RMSdE/Capacity by Hour for {zone} - {power_type.capitalize()} Power, Horizon: {horizon}")
-    for hour, rmsde in rmsde_by_hour.items():
-        print(f"Hour {hour}: {rmsde:.4f}")
+    capacity_mw = (zone_wind_capacity_gw[zone] if power_type == 'wind' else zone_solar_capacity_gw[zone]) * 1000
+    df_combined['error'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']) * 1000
+    df_combined['squared_error'] = df_combined['error'] ** 2
 
-    # Plotting
+    # Calculate daily NRMdSE normalized by capacity in MW
+    daily_nrmse = np.sqrt(df_combined['squared_error'].resample('D').median()) / capacity_mw
+
+    # Plotting daily NRMdSE
     plt.figure(figsize=(12, 6))
-    if 0 in rmsde_by_hour.index:
-        rmsde_by_hour.loc[24] = rmsde_by_hour.loc[0]
-    rmsde_by_hour.sort_index(inplace=True)
-    plt.plot(rmsde_by_hour.index, rmsde_by_hour, marker='o', linestyle='-', color='blue')
-    plt.xticks(list(range(0, 25)))
-    plt.title(f'Average Hourly RMSdE Divided by Capacity for {power_type.capitalize()} Power\nZone: {zone}, Horizon: {horizon}')
-    plt.xlabel('Hour of Day')
-    plt.ylabel('RMSdE Divided by Capacity')
+    plt.plot(daily_nrmse.index, daily_nrmse, linestyle='-', marker='o', color='red', label='Daily NRMdSE')
+    plt.title(f'Daily NRMdSE for {zone} - {power_type.capitalize()} Power Production')
+    plt.xlabel('Date')
+    plt.ylabel('NRMdSE (Normalized by Capacity in MW)')
     plt.grid(True)
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
-
-# Example function calls for each predicted-target file pair and power type
+# Call the visualization function
 for predicted_file, target_file in target_predicted_files.items():
-    visualize_hourly_seasonality(predicted_file, target_file, 12, 'wind')
-    visualize_hourly_seasonality(predicted_file, target_file, 24, 'wind')
+    visualize_daily_nrmse(predicted_file, target_file, 24, 'solar')

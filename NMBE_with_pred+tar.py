@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pyarrow.parquet as pq
 import pandas as pd
 import pytz
+import numpy as np  # Required for numerical operations
 
 # Dictionary mapping predicted file paths to target file paths
 target_predicted_files = {
@@ -22,7 +23,7 @@ zone_solar_capacity_gw = {
 
 zone_wind_capacity_gw = {
     'US-CAL-CISO': 6.03,  # California capacity in GW
-    'US-TEX-ERCO': 37,  # Texas capacity in GW
+    'US-TEX-ERCO': 37,    # Texas capacity in GW
 }
 
 def convert_to_local_time(df, zone_key):
@@ -40,46 +41,48 @@ def split_horizon(predicted_file, target_file, horizon):
     df_predicted = df_predicted[df_predicted["horizon"] == horizon].copy()
     df_target = df_target[df_target["horizon"] == horizon].copy()
     df_combined = pd.merge(df_predicted, df_target, on='target_time', suffixes=('_pred', '_target'))
+
+    # Calculate the last available target_time and start of last week
+    last_target_time = df_combined['target_time'].max()
+    one_week = pd.Timedelta(days=7)
+    start_time = last_target_time - one_week
+
+    # Filter df_combined for the last week
+    df_combined = df_combined[df_combined['target_time'] >= start_time]
+
     return df_combined
 
 def visualize_hourly_seasonality(predicted_file, target_file, horizon, power_type='wind'):
-    df_predicted = pq.read_table(predicted_file).to_pandas()
-    zone = df_predicted['zone_key'].iloc[0]
     df_combined = split_horizon(predicted_file, target_file, horizon)
+    zone = df_combined['zone_key_pred'].iloc[0]
     
-    # Calculate error and absolute error
+    # Calculate error
     df_combined['error'] = df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']
-    df_combined['abs_error'] = df_combined['error'].abs()
     
-    # Normalize the absolute error by the capacity for the zone
-    capacity_gw = zone_wind_capacity_gw[zone]  # Get capacity in kW
-    df_combined['normalized_abs_error'] = df_combined['abs_error'] / capacity_gw
-    
-    df_combined['hour'] = df_combined['target_time'].dt.hour.astype(int)
-    error_by_hour = df_combined.groupby('hour')['normalized_abs_error'].mean().reindex(range(0, 24)).sort_index()
+    # Determine the correct capacity based on the power type
+    capacity_gw = zone_wind_capacity_gw[zone] if power_type == 'wind' else zone_solar_capacity_gw[zone]
 
+    df_combined.set_index('target_time', inplace=True)
 
- # Output the normalized MAE for each hour
-    print(f"Normalized MAE by Hour for {zone} - {power_type.capitalize()} Power, Horizon: {horizon}")
-    for hour, mae in error_by_hour.items():
-        print(f"Hour {hour}: {mae:.4f}")
+    # Calculate daily NMBE
+    nmbe_by_day = df_combined['error'].rolling('30D').mean() / capacity_gw
 
-    # Plotting adjustments for normalized error
+    # Plotting both NMBE and power production
     plt.figure(figsize=(12, 6))
-    if 0 in error_by_hour.index:
-        error_by_hour.loc[24] = error_by_hour.loc[0]
-    error_by_hour.sort_index(inplace=True)
-    plt.plot(error_by_hour.index, error_by_hour, marker='o', linestyle='-', color='blue')
-    plt.xticks(list(range(0, 25)))
-    plt.title(f'Average Hourly Normalized MAE for {power_type.capitalize()} Power\nZone: {zone}, Horizon: {horizon}')
-    plt.xlabel('Hour of Day')
-    plt.ylabel('Normalized MAE (MAE divided by capacity)')
-    plt.ylim(0)  # Adjust as needed based on normalized error values
+    plt.plot(nmbe_by_day.index, nmbe_by_day, linestyle='-', color='blue', label='NMBE')
+    plt.plot(df_combined.index, df_combined[f'power_production_{power_type}_avg_pred'], linestyle='-', color='green', label='Predicted Power')
+    plt.plot(df_combined.index, df_combined[f'power_production_{power_type}_avg_target'], linestyle='-', color='red', label='Target Power')
+    
+    plt.title(f'Rolling Daily NMBE and Power Production\nZone: {zone}, Horizon: {horizon}, Power Type: {power_type.capitalize()}')
+    plt.xlabel('Date')
+    plt.ylabel('NMBE / Power Production (MW)')
     plt.grid(True)
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
-# Example function calls for each predicted-target file pair and power type
+# Call the visualization function
 for predicted_file, target_file in target_predicted_files.items():
-    visualize_hourly_seasonality(predicted_file, target_file, 12, 'wind')
     visualize_hourly_seasonality(predicted_file, target_file, 24, 'wind')
+    visualize_hourly_seasonality(predicted_file, target_file, 12, 'wind')
+

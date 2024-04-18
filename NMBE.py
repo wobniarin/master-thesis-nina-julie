@@ -2,8 +2,7 @@ import matplotlib.pyplot as plt
 import pyarrow.parquet as pq
 import pandas as pd
 import pytz
-import numpy as np  # Make sure to import NumPy for sqrt function
-
+import numpy as np 
 
 # Dictionary mapping predicted file paths to target file paths
 target_predicted_files = {
@@ -18,13 +17,13 @@ timezone_mapping = {
 }
 
 zone_solar_capacity_gw = {
-    'US-CAL-CISO': 19.7,  # California capacity in GW
-    'US-TEX-ERCO': 13.5,  # Texas capacity in GW
+    'US-CAL-CISO': 19.7,
+    'US-TEX-ERCO': 13.5,
 }
 
 zone_wind_capacity_gw = {
-    'US-CAL-CISO': 6.03,  # California capacity in GW
-    'US-TEX-ERCO': 37,  # Texas capacity in GW
+    'US-CAL-CISO': 6.03,
+    'US-TEX-ERCO': 37,
 }
 
 def convert_to_local_time(df, zone_key):
@@ -42,44 +41,42 @@ def split_horizon(predicted_file, target_file, horizon):
     df_predicted = df_predicted[df_predicted["horizon"] == horizon].copy()
     df_target = df_target[df_target["horizon"] == horizon].copy()
     df_combined = pd.merge(df_predicted, df_target, on='target_time', suffixes=('_pred', '_target'))
+    start_date = pd.Timestamp('2023-08-01', tz=timezone_mapping[zone_key])
+    end_date = pd.Timestamp('2023-08-14', tz=timezone_mapping[zone_key])
+    df_combined = df_combined[(df_combined['target_time'] >= start_date) & (df_combined['target_time'] <= end_date)]
     return df_combined
 
-def visualize_hourly_seasonality(predicted_file, target_file, horizon, power_type='wind'):
+def visualize_daily_nmbe(predicted_file, target_file, horizon, power_type='wind'):
     df_combined = split_horizon(predicted_file, target_file, horizon)
-    zone = df_combined['zone_key'].iloc[0]
-    
-    # Calculate error
-    df_combined['error'] = df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']
-    
-    # Determine the correct capacity based on the power type
-    capacity_gw = zone_wind_capacity_gw[zone] if power_type == 'wind' else zone_solar_capacity_gw[zone]
+    zone = df_combined['zone_key_pred'].iloc[0]
 
-    df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
-    df_combined.set_index('target_time', inplace=True)
+    if not pd.api.types.is_datetime64_any_dtype(df_combined.index):
+        df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
+        df_combined.set_index('target_time', inplace=True)
 
-    # Calculate daily NMBE
-    nmbe_by_day = df_combined['error'].rolling('30D').mean() / capacity_gw
+    # Determine the capacity in MW for normalization
+    capacity_mw = (zone_wind_capacity_gw[zone] if power_type == 'wind' else zone_solar_capacity_gw[zone]) * 1000
 
-    # Filter for January month of a specific year
-    start_january = pd.to_datetime('2023-01-01', utc=True)
-    end_january = pd.to_datetime('2023-01-31', utc=True)
-    nmbe_by_january = nmbe_by_day[start_january:end_january]
+    # Calculate bias error in MW
+    df_combined['bias_error'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']) * 1000
 
-    # Print NMBE for January days
-    print(f"Daily NMBE for January {zone} - {power_type.capitalize()} Power, Horizon: {horizon}")
-    for date, nmbe in nmbe_by_january.iteritems():
-        print(f"Date {date}: {nmbe:.4f}")
+    # Calculate daily NMBE normalized by capacity in MW
+    daily_nmbe = df_combined['bias_error'].resample('D').mean() / capacity_mw
 
-    # Plotting
+    # Plotting daily NMBE
     plt.figure(figsize=(12, 6))
-    plt.plot(nmbe_by_january.index, nmbe_by_january, marker='o', linestyle='-', color='blue')
-    plt.title(f'Rolling Daily NMBE for January {power_type.capitalize()} Power\nZone: {zone}, Horizon: {horizon}')
+    plt.plot(daily_nmbe.index, daily_nmbe, linestyle='-', marker='o', color='red', label='Daily NMBE')
+    plt.title(f'Daily NMBE for {zone} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
-    plt.ylabel('NMBE')
+    plt.ylabel('NMBE (Normalized by Capacity in MW)')
     plt.grid(True)
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
 # Call the visualization function
 for predicted_file, target_file in target_predicted_files.items():
-    visualize_hourly_seasonality(predicted_file, target_file, 24, 'wind')
+    visualize_daily_nmbe(predicted_file, target_file, 24, 'solar')
+
+
+
