@@ -5,8 +5,11 @@ import pandas as pd
 import numpy as np
 
 # Define the locations of your predicted and target data files
-target_predicted_files = {
+target_predicted_files_CAL = {
     'data/target_and_predicted/US-CAL-CISO_predicted.parquet': 'data/target_and_predicted/US-CAL-CISO_target.parquet',
+}
+
+target_predicted_files_TEX = {
     'data/target_and_predicted/US-TEX-ERCO_predicted.parquet': 'data/target_and_predicted/US-TEX-ERCO_target.parquet',
 }
 
@@ -27,16 +30,16 @@ def split_horizon(predicted_file, target_file, horizon):
     df_combined = pd.merge(df_predicted, df_target, on='target_time', suffixes=('_pred', '_target'))
     return df_combined
 
-def visualize_weekly_data(predicted_file, target_file, horizon, power_type='wind', week_start='2023-09-04'):
+def visualize_weekly_data(predicted_file, target_file, horizon, power_type, week_start, week_end, capacity, zone):
     df_combined = split_horizon(predicted_file, target_file, horizon)
-    zone = df_combined['zone_key'].iloc[0] 
+    #zone = df_combined['zone_key'].iloc[0] 
     
     # Convert 'week_start' to a timezone-aware datetime object
     week_start_date = pd.to_datetime(week_start).tz_localize('UTC')
-    one_week_later = week_start_date + pd.Timedelta(days=7)
+    week_end_date = pd.to_datetime(week_end).tz_localize('UTC')
     
     # Filter the combined dataframe for the specified week
-    df_week = df_combined[(df_combined['target_time'] >= week_start_date) & (df_combined['target_time'] < one_week_later)]
+    df_week = df_combined[(df_combined['target_time'] >= week_start_date) & (df_combined['target_time'] < week_end_date)]
     
     plt.figure(figsize=(15, 7))
     
@@ -44,25 +47,41 @@ def visualize_weekly_data(predicted_file, target_file, horizon, power_type='wind
         (f'power_production_{power_type}_avg_pred', 'blue', 'Predicted'),
         (f'power_production_{power_type}_avg_target', 'red', 'Target')
     ]:
-        plt.plot(df_week['target_time'], df_week[column_name], marker='o', linestyle='-', color=color, label=label)
+        plt.plot(df_week['target_time'], df_week[column_name], linestyle='-', color=color, label=label)
     
-    plt.title(f'Hourly {power_type.capitalize()} Power Production')
+    plt.title(f'Hourly {power_type.capitalize()} Power Production for {zone.capitalize()}')
     plt.xlabel('Time')
-    plt.ylabel('GWh')
+    plt.ylabel('MWh')
     plt.grid(True)
     plt.legend()
     plt.xticks(rotation=45)
     
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+
+    # Add a horizontal line at the maximum capacity
+    plt.axhline(y=capacity, color='green', linestyle='--', linewidth=2, label='Max Capacity')
     
     # Set the y-axis range
-    plt.ylim(0, 16500)  # Adjusting y-axis to have a range up to 16500
+    plt.ylim(-10, 10000)  # Adjusting y-axis to have a range up to 16500
     
     plt.tight_layout()
     plt.show()
 
 # Loop over each pair of predicted and target files, visualizing the data
-for predicted_file, target_file in target_predicted_files.items():
-    visualize_weekly_data(predicted_file, target_file, 12, 'solar', week_start='2023-09-04')
-    visualize_weekly_data(predicted_file, target_file, 24, 'solar', week_start='2023-09-04')
+
+US_CAL_CISO_solar_capacity = 19700
+US_CAL_CISO_wind_capacity = 6030
+US_TEX_ERCO_solar_capacity = 13500
+US_TEX_ERCO_wind_capacity = 37000
+
+
+for predicted_file, target_file in target_predicted_files_CAL.items():
+    #visualize_weekly_data(predicted_file, target_file, 24, 'solar', week_start='2023-08-01', week_end='2023-08-14', capacity=US_CAL_CISO_solar_capacity, zone='California')
+    visualize_weekly_data(predicted_file, target_file, 24, 'wind', week_start='2023-08-01', week_end='2023-08-14', capacity=US_CAL_CISO_wind_capacity, zone='California')
+
+"""
+for predicted_file, target_file in target_predicted_files_TEX.items():
+    visualize_weekly_data(predicted_file, target_file, 24, 'solar', week_start='2023-08-01', week_end='2023-08-14', capacity=US_TEX_ERCO_solar_capacity, zone='Texas')
+    visualize_weekly_data(predicted_file, target_file, 24, 'wind', week_start='2023-08-01', week_end='2023-08-14', capacity=US_TEX_ERCO_wind_capacity, zone='Texas')
+"""

@@ -21,6 +21,18 @@ def split_horizon(predicted_file, target_file, horizon):
 
     return df_predicted, df_target
 
+def split_df_date(df_predicted, df_target, week_start, week_end):
+   # Convert 'week_start' to a timezone-aware datetime object
+    week_start_date = pd.to_datetime(week_start).tz_localize('UTC')
+    week_end_date = pd.to_datetime(week_end).tz_localize('UTC')
+
+    # Filter the predicted dataframe for the specified week
+    predicted_week = df_predicted[(df_predicted['target_time'] >= week_start_date) & (df_predicted['target_time'] < week_end_date)]
+
+    # Filter the target dataframe for the specified week
+    target_week = df_target[(df_target['target_time'] >= week_start_date) & (df_target['target_time'] < week_end_date)]
+
+    return predicted_week, target_week
 
 def plot(x_value, y_value):
     max_y = max(y_value)
@@ -30,8 +42,8 @@ def plot(x_value, y_value):
     plt.scatter(x_value, y_value, s=10)
     plt.ylabel('Target')
     plt.xlabel('Predicted')
-    plt.xlim(0, 28000)
-    plt.ylim(0, 28000)
+    #plt.xlim(0, 28000)
+    #plt.ylim(0, 28000)
     print(plt.show())
 
 
@@ -103,14 +115,15 @@ def scatter_solar(predicted_file, target_file):
 
 if __name__ == "__main__": #So code only runs when in this file, not when imported.
     for predicted_file, target_file in target_predicted_files.items():
-        df_predicted_12, df_target_12 = split_horizon(predicted_file, target_file, 12)
-        scatter_wind_monthly(df_predicted_12, df_target_12, 1)
+        df_predicted_24, df_target_24 = split_horizon(predicted_file, target_file, 24)
+        df_predicted_24, df_target_24 = split_df_date(df_predicted=df_predicted_24, df_target=df_target_24, week_start='2023-08-01', week_end='2023-08-14')
+        
+        #scatter_wind_monthly(df_predicted_12, df_target_12, 1)
         #scatter_wind(df_predicted_12, df_target_12)
         #scatter_solar(df_predicted_12, df_target_12)
-
-        #df_predicted_24, df_target_24 = split_horizon(predicted_file, target_file, 24)
-        #scatter_wind(df_predicted_24, df_target_24)
-        #scatter_solar(df_predicted_24, df_target_24)
+        
+        scatter_wind(df_predicted_24, df_target_24)
+        scatter_solar(df_predicted_24, df_target_24)
 
 
 
