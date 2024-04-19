@@ -62,7 +62,7 @@ def visualize_daily_nmad(predicted_file, target_file, horizon, power_type='wind'
     df_combined['abs_error'] = np.abs(df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
 
     # Calculate daily NMAD normalized by capacity in MW
-    daily_nmad = df_combined['abs_error'].resample('D').median() / capacity_mw
+    daily_nmad = df_combined['abs_error'].resample('D').mean() / capacity_mw
 
 
     # Plotting daily NMAD

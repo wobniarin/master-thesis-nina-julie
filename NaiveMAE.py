@@ -1,24 +1,37 @@
 import pandas as pd
 import pytz
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+import pyarrow.parquet as pq
 
-# Path to your Parquet files
-target_files = {
-    'US-CAL-CISO': 'data/target_and_predicted/US-CAL-CISO_target.parquet',
-    'US-TEX-ERCO': 'data/target_and_predicted/US-TEX-ERCO_target.parquet',
+# Dictionary mapping predicted file paths to target file paths
+target_predicted_files = {
+    'data/target_and_predicted/US-CAL-CISO_predicted.parquet': 'data/target_and_predicted/US-CAL-CISO_target.parquet',
+    'data/target_and_predicted/US-TEX-ERCO_predicted.parquet': 'data/target_and_predicted/US-TEX-ERCO_target.parquet',
 }
 
+# Timezone mapping for each zone
 timezone_mapping = {
-    'US-CAL-CISO': 'America/Los_Angeles',  # California Time Zone
-    'US-TEX-ERCO': 'America/Chicago',      # Texas Time Zone
+    'US-CAL-CISO': 'America/Los_Angeles',
+    'US-TEX-ERCO': 'America/Chicago',
 }
 
-# Wind capacities in GW, to be converted to MW for calculation
-zone_wind_capacity_gw = {
-    'US-CAL-CISO': 6.03,
-    'US-TEX-ERCO': 37,
+# Capacities in MW
+zone_capacity_mw = {
+    'US-CAL-CISO': {'solar': 19700, 'wind': 6030},
+    'US-TEX-ERCO': {'solar': 13500, 'wind': 37000},
 }
+
+def split_horizon(df_predicted, df_target, zone_key, horizon):
+    df_predicted = convert_to_local_time(df_predicted, zone_key)
+    df_target = convert_to_local_time(df_target, zone_key)
+    df_predicted = df_predicted[df_predicted["horizon"] == horizon].copy()
+    df_target = df_target[df_target["horizon"] == horizon].copy()
+    df_combined = pd.merge(df_predicted, df_target, on='target_time', suffixes=('_pred', '_target'))
+    start_date = pd.Timestamp('2023-08-01', tz=timezone_mapping[zone_key])
+    end_date = pd.Timestamp('2023-08-14', tz=timezone_mapping[zone_key])
+    df_combined = df_combined[(df_combined['target_time'] >= start_date) & (df_combined['target_time'] <= end_date)]
+    return df_combined
 
 def convert_to_local_time(df, zone_key):
     df['target_time'] = pd.to_datetime(df['target_time'], unit='ms', utc=True)
@@ -26,42 +39,62 @@ def convert_to_local_time(df, zone_key):
     df['target_time'] = df['target_time'].dt.tz_convert(local_timezone)
     return df
 
-# Define the specific period
-start_date = pd.Timestamp('2023-08-01', tz='UTC')
-end_date = pd.Timestamp('2023-08-14', tz='UTC')
+def calculate_nmae(df, column_pred, column_actual, capacity_mw):
+    df['abs_error'] = np.abs(df[column_pred] - df[column_actual])
+    daily_nmae = df['abs_error'].resample('D').mean() / capacity_mw
+    return daily_nmae.mean()
 
-# Process each file
-for zone_key, file_path in target_files.items():
-    # Load the dataset
-    df = pd.read_parquet(file_path)
-    
-    # Convert target_time to the local timezone for the region
-    df = convert_to_local_time(df, zone_key)
-    
-    # Filter rows for the defined period
-    df_period = df[(df['target_time'] >= start_date.tz_convert(timezone_mapping[zone_key])) & 
-                   (df['target_time'] <= end_date.tz_convert(timezone_mapping[zone_key]))]
-    
-    # For naive forecast, shift the values by 48 hours
-    df_period = df_period.sort_values('target_time')
-    df_period['naive_forecast'] = df_period['power_production_wind_avg'].shift(48)
-    
-    # Calculate MAE and normalize by wind capacity in MW
-    capacity_mw = zone_wind_capacity_gw[zone_key] * 1000  # Convert GW to MW
-    df_period['mae'] = (df_period['power_production_wind_avg'] - df_period['naive_forecast']).abs()
-    normalized_mae = df_period['mae'].mean() / capacity_mw
-    print(f"Normalized Mean Absolute Error for {zone_key} in MW: {normalized_mae:.2f}")
-    
-    # Plotting normalized MAE in MW
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(df_period['target_time'], df_period['mae'] / capacity_mw, label=f"Wind", color='blue')
-    ax.set_title(f'Normalized MAE (Wind) for {zone_key}')
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Normalized MAE per MW')
-    ax.legend()
-    plt.show()
-    
-    # Save the result to a new file or handle it as needed
-    output_file_path = f'naive_forecast_{zone_key}.parquet'
-    df_period.to_parquet(output_file_path, index=False)
+def calculate_mrae(df, column_pred, column_naive, column_actual):
+    # Calculate MAE for predictive and naive models
+    mae_pred = np.mean(np.abs(df[column_pred] - df[column_actual]))
+    mae_naive = np.mean(np.abs(df[column_naive] - df[column_actual]))
 
+    # Calculate MRAE as the ratio of MAE of predictive model to the MAE of the naive model
+    if mae_naive != 0:  # Ensure no division by zero
+        mrae = mae_pred / mae_naive
+    else:
+        mrae = np.inf  # Handle division by zero if naive MAE is zero
+    return mrae
+
+
+# Prepare data and calculate NMAE and MRAE for each model
+results = []
+for predicted_file, target_file in target_predicted_files.items():
+    # Load the data
+    df_predicted = pq.read_table(predicted_file).to_pandas()
+    df_actual = pq.read_table(target_file).to_pandas()
+    zone_key = df_predicted['zone_key'].iloc[0]
+    power_type = 'solar'  # This can be set as needed
+
+    # Split data by horizon, focusing on horizon 24 and discarding horizon 12
+    df_combined = split_horizon(df_predicted, df_actual, zone_key, 24)
+
+    df_predicted = convert_to_local_time(df_predicted, zone_key)
+    df_actual = convert_to_local_time(df_actual, zone_key)
+    df_combined = pd.merge(df_predicted, df_actual, on='target_time', suffixes=('_pred', '_target'))
+    df_combined.set_index('target_time', inplace=True)
+
+    # Set up naive forecast by shifting the actual values
+    df_combined['naive_forecast'] = df_combined[f'power_production_{power_type}_avg_target'].shift(24)
+
+    # Calculate NMAE for predictive model
+    capacity_mw = zone_capacity_mw[zone_key][power_type]
+    nmae_predicted = calculate_nmae(df_combined, f'power_production_{power_type}_avg_pred', f'power_production_{power_type}_avg_target', capacity_mw)
+
+    # Calculate NMAE for naive model
+    nmae_naive = calculate_nmae(df_combined, 'naive_forecast', f'power_production_{power_type}_avg_target', capacity_mw)
+
+    # Calculate MRAE for the model
+    # Example call within your script, assuming you have column names defined for each
+    mrae_predicted = calculate_mrae(df_combined, f'power_production_{power_type}_avg_pred', 'naive_forecast', f'power_production_{power_type}_avg_target')
+
+
+    # Print NMAE and MRAE results
+    print(f'NMAE (Predictive) for {zone_key} - {power_type.capitalize()} Power: {nmae_predicted:.4f}')
+    print(f'NMAE (Naive) for {zone_key} - {power_type.capitalize()} Power: {nmae_naive:.4f}')
+    print(f'MRAE for {zone_key} - {power_type.capitalize()} Power: {mrae_predicted:.4f}')
+
+    results.append((zone_key, nmae_predicted, nmae_naive, mrae_predicted))
+
+# Optionally, add any plotting code here if needed
+# ...
