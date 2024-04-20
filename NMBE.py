@@ -58,7 +58,7 @@ def visualize_daily_nmbe(predicted_file, target_file, horizon, power_type='wind'
     capacity_mw = (zone_wind_capacity_gw[zone] if power_type == 'wind' else zone_solar_capacity_gw[zone]) * 1000
 
     # Calculate bias error in MW
-    df_combined['bias_error'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']) * 1000
+    df_combined['bias_error'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
 
     # Calculate daily NMBE normalized by capacity in MW
     daily_nmbe = df_combined['bias_error'].resample('D').mean() / capacity_mw
@@ -76,7 +76,7 @@ def visualize_daily_nmbe(predicted_file, target_file, horizon, power_type='wind'
 
 # Call the visualization function
 for predicted_file, target_file in target_predicted_files.items():
-    visualize_daily_nmbe(predicted_file, target_file, 24, 'solar')
+    visualize_daily_nmbe(predicted_file, target_file, 24, 'wind')
 
 
 
