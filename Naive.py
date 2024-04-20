@@ -39,7 +39,7 @@ for zone_key, file_path in target_files.items():
     # For naive forecast, shift the values by 24 hours
     # Ensure sorting by target_time before shifting
     df_period = df_period.sort_values('target_time')
-    df_period['naive_forecast'] = df_period.groupby(['zone_key'])['power_production_wind_avg'].shift(48)
+    df_period['naive_forecast'] = df_period.groupby(['zone_key'])['power_production_solar_avg'].shift(96)
     
     # Save the result to a new file or handle it as needed
     output_file_path = f'naive_forecast_{zone_key}.parquet'
