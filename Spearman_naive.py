@@ -31,6 +31,10 @@ zone_wind_capacity_gw = {
 naive_CAL = 'naive_forecast_US-CAL-CISO.parquet'
 naive_TEX = 'naive_forecast_US-TEX-ERCO.parquet'
 
+TEX_target = 'data/target_and_predicted/US-TEX-ERCO_target.parquet'
+CAL_target = 'data/target_and_predicted/US-CAL-CISO_target.parquet'
+
+
 def convert_to_local_time(df, zone_key):
     #This line converts the timestamps in the 'target_time' column to datetime objects.
     df['target_time'] = pd.to_datetime(df['target_time'], unit='ms', utc=True)
@@ -44,24 +48,24 @@ def convert_to_local_time(df, zone_key):
     return df
 
 
-def split_horizon(predicted_file, target_file, horizon):
+def split_horizon(naive_file, target_file, horizon):
     #Convert to pandas DataFrames
-    df_predicted = pq.read_table(predicted_file).to_pandas()
+    df_naive = pq.read_table(naive_file).to_pandas()
     df_target = pq.read_table(target_file).to_pandas()
 
     #Extracts the zone_key
-    zone_key = df_predicted['zone_key'].iloc[0]
+    zone_key = df_target['zone_key'].iloc[0]
 
     #converts the timestamp columns ('target_time') to the local time zone
-    df_predicted = convert_to_local_time(df_predicted, zone_key)
+    df_naive = convert_to_local_time(df_naive, zone_key)
     df_target = convert_to_local_time(df_target, zone_key)
 
     #filters DataFrames to include only the rows where the 'horizon' column matches the specified horizon (24 or 12)
-    df_predicted = df_predicted[df_predicted["horizon"] == horizon].copy()
+    df_naive = df_naive[df_naive["horizon"] == horizon].copy()
     df_target = df_target[df_target["horizon"] == horizon].copy()
 
     #Merges the filtered DataFrames on the 'target_time' column, appending suffixes to column names to differentiate between predicted and target values.
-    df_combined = pd.merge(df_predicted, df_target, on='target_time', suffixes=('_pred', '_target'))
+    df_combined = pd.merge(df_naive, df_target, on='target_time', suffixes=('_pred', '_target'))
     
     #defines a time range from start_date to end_date, both inclusive, in the local time zone based on the zone_key
     start_date = pd.Timestamp('2023-08-01', tz=timezone_mapping[zone_key])
@@ -72,10 +76,10 @@ def split_horizon(predicted_file, target_file, horizon):
 
     return df_combined
 
-def visualize_daily_spearman(predicted_file, target_file, horizon, power_type='solar'):
+def visualize_daily_spearman(naive_file, target_file, horizon, power_type='solar'):
     
     #calls the split_horizon function to obtain a new combined dataframe with specified horizon
-    df_combined = split_horizon(predicted_file, target_file, horizon) 
+    df_combined = split_horizon(naive_file, target_file, horizon) 
 
     #extracts the zone from the df_combined DataFrame
     zone = df_combined['zone_key_pred'].iloc[0]
@@ -84,8 +88,9 @@ def visualize_daily_spearman(predicted_file, target_file, horizon, power_type='s
     df_combined.set_index('target_time', inplace=True)
 
     # Calculate absolute error in MW, between the predicted and target power production values for each row and adds it as a new column named 'abs_error'
-    df_combined['abs_error'] = np.abs(df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
+    df_combined['abs_error'] = np.abs(df_combined[f'naive_forecast'] - df_combined[f'power_production_{power_type}_avg_target'])
 
+   
     # Prepare daily data without aggregating into a single mean or sum
     df_daily = df_combined.resample('D')
 
@@ -93,7 +98,7 @@ def visualize_daily_spearman(predicted_file, target_file, horizon, power_type='s
     # Iterating over each day as a group
     for date, group in df_daily:
         if len(group) > 1:  # Ensure there's enough data to compute Spearman
-            spearman_corr, pvalue = spearmanr(group[f'power_production_{power_type}_avg_target'], group['abs_error'])
+            spearman_corr, _ = spearmanr(group[f'power_production_{power_type}_avg_target'], group['abs_error'])
             daily_spearman.append(spearman_corr)
         else:
             daily_spearman.append(np.nan)  # Append NaN if not enough data
@@ -101,7 +106,7 @@ def visualize_daily_spearman(predicted_file, target_file, horizon, power_type='s
         
     # Plotting daily Spearman
     plt.figure(figsize=(12, 6))
-    plt.plot([date for date, _ in df_daily], daily_spearman, linestyle='-', marker='o', color='green', markersize=5, label='Daily Spearman Rank Correlation')
+    plt.plot([date for date, _ in df_daily], daily_spearman, linestyle='-', marker='o', color='green', markersize=5, label='Daily Naive Spearman Rank Correlation')
     #plt.plot(df_daily.index, daily_spearman, linestyle='-', marker='o', color='green', markersize=5, label='Daily Spearman Rank Correlation')
     plt.title(f'Daily Spearman Rank Correlation for {zone} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
@@ -113,5 +118,6 @@ def visualize_daily_spearman(predicted_file, target_file, horizon, power_type='s
     plt.show()
 
 # Call the visualization function
-for predicted_file, target_file in target_predicted_files.items():
-    visualize_daily_spearman(predicted_file, target_file, 24, 'solar')  
+
+visualize_daily_spearman(naive_TEX, TEX_target, 24, 'wind')  
+visualize_daily_spearman(naive_CAL, CAL_target, 24, 'wind')

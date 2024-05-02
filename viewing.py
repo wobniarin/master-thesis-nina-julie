@@ -2,7 +2,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 # Specify the path to your Parquet file
-path = 'naive_forecast_US-CAL-CISO.parquet'
+path = 'data\\features\\US-TEX-ERCO.parquet'
 
 # Load the entire Parquet file into a pandas DataFrame
 table = pq.read_table(path)

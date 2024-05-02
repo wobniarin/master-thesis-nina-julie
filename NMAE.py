@@ -21,6 +21,9 @@ timezone_mapping = {
     'US-TEX-ERCO': 'America/Chicago',      # Texas Time Zone
 }
 
+naive_CAL = 'naive_forecast_US-CAL-CISO.parquet'
+naive_TEX = 'naive_forecast_US-TEX-ERCO.parquet'
+
 zone_solar_capacity_gw = {
     'US-CAL-CISO': 19.7,
     'US-TEX-ERCO': 13.5,
@@ -84,4 +87,3 @@ def visualize_daily_nmae(predicted_file, target_file, horizon, power_type='wind'
 # Call the visualization function
 for predicted_file, target_file in target_predicted_files.items():
     visualize_daily_nmae(predicted_file, target_file, 24, 'wind')
-
