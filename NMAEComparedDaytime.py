@@ -21,9 +21,6 @@ timezone_mapping = {
     'US-TEX-ERCO': 'America/Chicago',      # Texas Time Zone
 }
 
-naive_CAL = 'naive_forecast_US-CAL-CISO.parquet'
-naive_TEX = 'naive_forecast_US-TEX-ERCO.parquet'
-
 zone_solar_capacity_gw = {
     'US-CAL-CISO': 19.7,
     'US-TEX-ERCO': 13.5,
@@ -56,26 +53,31 @@ def split_horizon(predicted_file, target_file, horizon):
     return df_combined
 
 
-def visualize_daily_nmae(predicted_file, target_file, horizon, power_type='wind'):
-    df_combined = split_horizon(predicted_file, target_file, horizon)
-    zone = df_combined['zone_key_pred'].iloc[0]
 
-    if not pd.api.types.is_datetime64_any_dtype(df_combined.index):
-        df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
-        df_combined.set_index('target_time', inplace=True)
+def visualize_combined_nmae(predicted_file, target_file, predicted_daytime_file, target_daytime_file, horizon, power_type='solar', zone='US-CAL-CISO'):
+    plt.figure(figsize=(12, 6))
 
-    # Determine the correct capacity in MW for normalization
+    # Common setup for both datasets
+    start_date = pd.Timestamp('2023-08-01', tz=timezone_mapping[zone])
+    end_date = pd.Timestamp('2023-08-14', tz=timezone_mapping[zone])
     capacity_mw = (zone_wind_capacity_gw[zone] if power_type == 'wind' else zone_solar_capacity_gw[zone]) * 1000
 
-    # Calculate absolute error in MW
-    df_combined['abs_error'] = np.abs(df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
+    # Helper function to plot data
+    def plot_data(predicted_file, target_file, label, linestyle):
+        df_combined = split_horizon(predicted_file, target_file, horizon)
+        df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], utc=True)
+        df_combined.set_index('target_time', inplace=True)
+        df_combined['abs_error'] = np.abs(df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
+        daily_nmae = df_combined['abs_error'].resample('D').mean() / capacity_mw
+        plt.plot(daily_nmae.index, daily_nmae, linestyle=linestyle, marker='o', label=label)
 
-    # Calculate daily NMAE normalized by capacity in MW
-    daily_nmae = df_combined['abs_error'].resample('D').mean() / capacity_mw
+    # Plot for all-day data
+    plot_data(predicted_file, target_file, 'Daily NMAE All Day', '-')
 
-    # Plotting daily NMAE
-    plt.figure(figsize=(12, 6))
-    plt.plot(daily_nmae.index, daily_nmae, linestyle='-', marker='o', color='blue', label='Daily NMAE')
+    # Plot for daytime data
+    plot_data(predicted_daytime_file, target_daytime_file, 'Daily NMAE Daytime', '--')
+
+    # Finalize plot
     plt.title(f'NMAE for {zone} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
     plt.ylabel('NMAE (Normalized by Capacity in MW)')
@@ -84,6 +86,20 @@ def visualize_daily_nmae(predicted_file, target_file, horizon, power_type='wind'
     plt.tight_layout()
     plt.show()
 
-# Call the visualization function
-for predicted_file, target_file in target_predicted_files.items():
-    visualize_daily_nmae(predicted_file, target_file, 24, 'wind')
+# Call the visualization function for each zone with corresponding files
+visualize_combined_nmae(
+    'data/target_and_predicted/US-CAL-CISO_predicted.parquet',
+    'data/target_and_predicted/US-CAL-CISO_target.parquet',
+    'data/target_and_predicted/US-CAL-CISO_predicted_daytime.parquet',
+    'data/target_and_predicted/US-CAL-CISO_target_daytime.parquet',
+    24, 'solar', 'US-CAL-CISO'
+)
+
+visualize_combined_nmae(
+    'data/target_and_predicted/US-TEX-ERCO_predicted.parquet',
+    'data/target_and_predicted/US-TEX-ERCO_target.parquet',
+    'data/target_and_predicted/US-TEX-ERCO_predicted_daytime.parquet',
+    'data/target_and_predicted/US-TEX-ERCO_target_daytime.parquet',
+    24, 'solar', 'US-TEX-ERCO'
+)
+

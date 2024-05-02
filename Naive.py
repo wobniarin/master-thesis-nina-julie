@@ -20,10 +20,10 @@ def convert_to_local_time(df, zone_key):
     return df
 
 # Define the specific period
-start_date = pd.Timestamp('2023-08-01', tz='UTC')
+start_date = pd.Timestamp('2023-07-30', tz='UTC')
 end_date = pd.Timestamp('2023-08-14', tz='UTC')
 
-# Assume the frequency of data recording is every half hour
+#Assume the frequency of data recording is every half hour
 shift_periods = 96  # 48 hours * 2 half-hours per hour
 
 # Process each file
