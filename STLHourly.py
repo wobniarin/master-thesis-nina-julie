@@ -4,7 +4,7 @@ from statsmodels.tsa.seasonal import STL
 import matplotlib.dates as mdates
 
 # Load your time series data
-df_combined = pd.read_parquet('data/target_and_predicted/US-CAL-CISO_predicted.parquet')
+df_combined = pd.read_parquet('data/target_and_predicted/US-TEX-ERCO_target.parquet')
 df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
 
 # Set the index to the target_time
@@ -44,19 +44,19 @@ def setup_subplot(ax, data, title, y_limit=None):
 
 # Trend
 ax1 = plt.subplot(411)
-setup_subplot(ax1, stl_result.trend, 'Trend', (0, 6100))
+setup_subplot(ax1, stl_result.trend, 'Trend', (-200, 15000))
 
 # Seasonal
 ax2 = plt.subplot(412)
-setup_subplot(ax2, stl_result.seasonal, 'Seasonality', (-600, 800))
+setup_subplot(ax2, stl_result.seasonal, 'Seasonality', (-5500, 3000))
 
 # Residuals
 ax3 = plt.subplot(413)
-setup_subplot(ax3, stl_result.resid, 'Residuals', (-1500, 1500))
+setup_subplot(ax3, stl_result.resid, 'Residuals', (-5000, 5000))
 
 # Observed
 ax4 = plt.subplot(414)
-setup_subplot(ax4, data_to_analyze, 'Observed', (-200, 6200))
+setup_subplot(ax4, data_to_analyze, 'Observed', (-500, 17000))
 
 # Improve spacing between subplots
 plt.tight_layout()

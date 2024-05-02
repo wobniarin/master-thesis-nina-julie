@@ -75,7 +75,7 @@ for predicted_file, target_file in target_predicted_files.items():
     df_combined.set_index('target_time', inplace=True)
 
     # Set up naive forecast by shifting the actual values
-    df_combined['naive_forecast'] = df_combined[f'power_production_{power_type}_avg_target'].shift(24)
+    df_combined['naive_forecast'] = df_combined[f'power_production_{power_type}_avg_target'].shift(48)
 
     # Calculate NMAE for predictive model
     capacity_mw = zone_capacity_mw[zone_key][power_type]
