@@ -50,6 +50,10 @@ def split_horizon(predicted_file, target_file, horizon):
 def visualize_daily_nsde(predicted_file, target_file, horizon, power_type='solar'):
     df_combined = split_horizon(predicted_file, target_file, horizon)
     zone = df_combined['zone_key_pred'].iloc[0]
+    if zone == 'US-CAL-CISO':
+        zone_name = 'California'
+    else:
+        zone_name = 'Texas'
 
     if not pd.api.types.is_datetime64_any_dtype(df_combined.index):
         df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
@@ -68,7 +72,7 @@ def visualize_daily_nsde(predicted_file, target_file, horizon, power_type='solar
     # Plotting daily NSDE
     plt.figure(figsize=(12, 6))
     plt.plot(daily_nsde.index, daily_nsde, linestyle='-', marker='o', color='orange', label='Daily NSDE')
-    plt.title(f'Daily NSDE for {zone} - {power_type.capitalize()} Power Production')
+    plt.title(f'Daily NSDE for {zone_name} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
     plt.ylabel('NSDE (Normalized by Capacity in MW)')
     plt.grid(True)
@@ -78,4 +82,5 @@ def visualize_daily_nsde(predicted_file, target_file, horizon, power_type='solar
 
 # Call the visualization function
 for predicted_file, target_file in target_predicted_files.items():
-    visualize_daily_nsde(predicted_file, target_file, 24, 'solar')  
+    visualize_daily_nsde(predicted_file, target_file, 24, 'solar') 
+    visualize_daily_nsde(predicted_file, target_file, 24, 'wind')   

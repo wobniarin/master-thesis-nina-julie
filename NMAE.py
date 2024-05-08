@@ -34,7 +34,6 @@ zone_wind_capacity_gw = {
     'US-TEX-ERCO': 37,
 }
 
-
 def convert_to_local_time(df, zone_key):
     df['target_time'] = pd.to_datetime(df['target_time'], unit='ms', utc=True)
     local_timezone = pytz.timezone(timezone_mapping[zone_key])
@@ -59,6 +58,10 @@ def split_horizon(predicted_file, target_file, horizon):
 def visualize_daily_nmae(predicted_file, target_file, horizon, power_type='wind'):
     df_combined = split_horizon(predicted_file, target_file, horizon)
     zone = df_combined['zone_key_pred'].iloc[0]
+    if zone == 'US-CAL-CISO':
+        zone_name = 'California'
+    else:
+        zone_name = 'Texas'
 
     if not pd.api.types.is_datetime64_any_dtype(df_combined.index):
         df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
@@ -76,7 +79,7 @@ def visualize_daily_nmae(predicted_file, target_file, horizon, power_type='wind'
     # Plotting daily NMAE
     plt.figure(figsize=(12, 6))
     plt.plot(daily_nmae.index, daily_nmae, linestyle='-', marker='o', color='blue', label='Daily NMAE')
-    plt.title(f'NMAE for {zone} - {power_type.capitalize()} Power Production')
+    plt.title(f'NMAE for {zone_name} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
     plt.ylabel('NMAE (Normalized by Capacity in MW)')
     plt.grid(True)
@@ -86,4 +89,5 @@ def visualize_daily_nmae(predicted_file, target_file, horizon, power_type='wind'
 
 # Call the visualization function
 for predicted_file, target_file in target_predicted_files.items():
+    #visualize_daily_nmae(predicted_file, target_file, 24, 'solar')
     visualize_daily_nmae(predicted_file, target_file, 24, 'wind')

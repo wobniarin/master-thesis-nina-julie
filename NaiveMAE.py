@@ -81,7 +81,12 @@ def visualize_daily_mrae(predicted_file, target_file):
 
     #extracts the zone from one of the DataFrames
     zone_key = df_predicted['zone_key'].iloc[0]
-    power_type = 'wind'  # This can be set to wind also
+    if zone_key == 'US-CAL-CISO':
+        zone_name = 'California'
+    else:
+        zone_name = 'Texas'
+
+    power_type = 'solar'  # This can be set to wind/solar
 
     #finding the right max capacity
     capacity_mw = zone_capacity_mw[zone_key][power_type]
@@ -106,16 +111,13 @@ def visualize_daily_mrae(predicted_file, target_file):
     # Plotting daily NMAE
     plt.figure(figsize=(12, 6))
     plt.plot(daily_mrae.index, daily_mrae, linestyle='-', marker='o', color='blue', label='Daily MRAE')
-    plt.title(f'MRAE for {zone_key} - {power_type.capitalize()} Power Production')
+    plt.title(f'MRAE for {zone_name} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
     plt.ylabel('MRAE')
-    max_ytick = int(np.ceil(daily_mrae.max()))  # Get the max MRAE to define the range of yticks
-    plt.yticks(np.arange(0, max_ytick + 1, 1))
     # Set x-ticks to be every day and format the dates
     plt.grid(True)
-    plt.legend()
-    # Add a line at 1
-    plt.axhline(y=1, color='green', linestyle='--', linewidth=2,)
+    plt.axhline(y=1, color='green', linestyle='--', linewidth=2, label='Line of equal performance between the two models')
+    plt.legend(loc='upper right')
     plt.tight_layout()
     plt.show()
 
