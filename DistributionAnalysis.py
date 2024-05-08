@@ -57,7 +57,7 @@ def visualize_weekly_data_naive(predicted_file, target_file, naive_file, horizon
     week_end_date = pd.to_datetime(week_end).tz_localize('UTC')
     
     # Filter the combined dataframe for the specified week
-    df_week = df_combined[(df_combined['target_time'] >= week_start_date) & (df_combined['target_time'] < week_end_date)]
+    df_week = df_combined[(df_combined['target_time'] >= week_start_date) & (df_combined['target_time'] <= week_end_date)]
     
     plt.figure(figsize=(15, 7))
     
@@ -75,7 +75,7 @@ def visualize_weekly_data_naive(predicted_file, target_file, naive_file, horizon
     plt.xlabel('Time')
     plt.ylabel('MWh')
     plt.grid(True)
-    plt.legend()
+    plt.legend(loc='upper right')
     plt.xticks(rotation=45)
     
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
@@ -85,7 +85,7 @@ def visualize_weekly_data_naive(predicted_file, target_file, naive_file, horizon
     plt.axhline(y=capacity, color='green', linestyle='--', linewidth=2, label='Max Capacity')
     
     # Set the y-axis range
-    plt.ylim(-10, 16000)  # Adjusting y-axis to have a range up to 16500
+    plt.ylim(-10, 10000)  # Adjusting y-axis range to correspond to max capacities
     
     plt.tight_layout()
     plt.show()
@@ -124,25 +124,27 @@ def visualize_weekly_data(predicted_file, target_file, horizon, power_type, week
 
     # Add a horizontal line at the maximum capacity
     plt.axhline(y=capacity, color='green', linestyle='--', linewidth=2, label='Max Capacity')
-    plt.legend()
+    plt.legend(loc='upper right')
     
     # Set the y-axis range
-    plt.ylim(-10, 21000)  # Adjusting y-axis to have a range up to 16500
+    plt.ylim(-10, 15000)
     
     plt.tight_layout()
     plt.show()
 
 
-"""
-for predicted_file, target_file in target_predicted_files_CAL.items():
-    #visualize_weekly_data(predicted_file, target_file, naive_CAL, 24, 'solar', week_start='2023-08-01', week_end='2023-08-14', capacity=US_CAL_CISO_solar_capacity, zone='California')
-    #visualize_weekly_data(predicted_file, target_file, naive_CAL, 24, 'wind', week_start='2023-08-01', week_end='2023-08-14', capacity=US_CAL_CISO_wind_capacity, zone='California')
 
 for predicted_file, target_file in target_predicted_files_TEX.items():
-    visualize_weekly_data_naive(predicted_file, target_file, naive_TEX, 24, 'solar', week_start='2023-08-01', week_end='2023-08-14', capacity=US_TEX_ERCO_solar_capacity, zone='Texas')
-    #visualize_weekly_data(predicted_file, target_file, naive_TEX, 24, 'wind', week_start='2023-08-01', week_end='2023-08-14', capacity=US_TEX_ERCO_wind_capacity, zone='Texas')
-"""
+    visualize_weekly_data_naive(predicted_file, target_file, naive_TEX, 24, 'solar', week_start='2023-08-01', week_end='2023-08-15', capacity=US_TEX_ERCO_solar_capacity, zone='Texas')
+    #visualize_weekly_data_naive(predicted_file, target_file, naive_TEX, 24, 'wind', week_start='2023-08-01', week_end='2023-08-15', capacity=US_TEX_ERCO_wind_capacity, zone='Texas')
+
+    #visualize_weekly_data(predicted_file, target_file, 24, 'solar', week_start='2023-08-01', week_end='2023-08-14', capacity=US_TEX_ERCO_solar_capacity, zone='Texas')
+    #visualize_weekly_data(predicted_file, target_file, 24, 'wind', week_start='2023-08-01', week_end='2023-08-14', capacity=US_TEX_ERCO_wind_capacity, zone='Texas')
+
 
 for predicted_file, target_file in target_predicted_files_CAL.items():
-    visualize_weekly_data(predicted_file, target_file, 24, 'solar', week_start='2023-08-01', week_end='2023-08-14', capacity=US_CAL_CISO_solar_capacity, zone='California')
-    #visualize_weekly_data(predicted_file, target_file, 24, 'wind', week_start='2023-08-01', week_end='2023-08-14', capacity=US_CAL_CISO_wind_capacity, zone='California')
+    #visualize_weekly_data_naive(predicted_file, target_file, naive_CAL, 24, 'solar', week_start='2023-08-01', week_end='2023-08-15', capacity=US_CAL_CISO_solar_capacity, zone='California')
+    visualize_weekly_data_naive(predicted_file, target_file, naive_CAL, 24, 'wind', week_start='2023-08-01', week_end='2023-08-15', capacity=US_CAL_CISO_wind_capacity, zone='California')
+
+    #visualize_weekly_data(predicted_file, target_file, 24, 'solar', week_start='2023-08-01', week_end='2023-08-15', capacity=US_CAL_CISO_solar_capacity, zone='California')
+    #visualize_weekly_data(predicted_file, target_file, 24, 'wind', week_start='2023-08-01', week_end='2023-08-15', capacity=US_CAL_CISO_wind_capacity, zone='California')

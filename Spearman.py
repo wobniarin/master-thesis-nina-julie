@@ -65,7 +65,7 @@ def split_horizon(predicted_file, target_file, horizon):
     
     #defines a time range from start_date to end_date, both inclusive, in the local time zone based on the zone_key
     start_date = pd.Timestamp('2023-08-01', tz=timezone_mapping[zone_key])
-    end_date = pd.Timestamp('2023-08-14', tz=timezone_mapping[zone_key])
+    end_date = pd.Timestamp('2023-08-15', tz=timezone_mapping[zone_key])
 
     #filters the combined DataFrame to include only rows where the 'target_time' falls within the specified time range.
     df_combined = df_combined[(df_combined['target_time'] >= start_date) & (df_combined['target_time'] <= end_date)]
@@ -79,6 +79,10 @@ def visualize_daily_spearman(predicted_file, target_file, horizon, power_type='s
 
     #extracts the zone from the df_combined DataFrame
     zone = df_combined['zone_key_pred'].iloc[0]
+    if zone == 'US-CAL-CISO':
+        zone_name = 'California'
+    else:
+        zone_name = 'Texas'
 
     #sets 'target_time' as the index for dataframe
     df_combined.set_index('target_time', inplace=True)
@@ -103,7 +107,7 @@ def visualize_daily_spearman(predicted_file, target_file, horizon, power_type='s
     plt.figure(figsize=(12, 6))
     plt.plot([date for date, _ in df_daily], daily_spearman, linestyle='-', marker='o', color='green', markersize=5, label='Daily Spearman Rank Correlation')
     #plt.plot(df_daily.index, daily_spearman, linestyle='-', marker='o', color='green', markersize=5, label='Daily Spearman Rank Correlation')
-    plt.title(f'Daily Spearman Rank Correlation for {zone} - {power_type.capitalize()} Power Production')
+    plt.title(f'Daily Spearman Rank Correlation for {zone_name} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
     plt.ylabel('Spearman Rank Correlation')
     plt.grid(True)
@@ -114,4 +118,5 @@ def visualize_daily_spearman(predicted_file, target_file, horizon, power_type='s
 
 # Call the visualization function
 for predicted_file, target_file in target_predicted_files.items():
-    visualize_daily_spearman(predicted_file, target_file, 24, 'solar')  
+    visualize_daily_spearman(predicted_file, target_file, 24, 'solar') 
+    visualize_daily_spearman(predicted_file, target_file, 24, 'wind')

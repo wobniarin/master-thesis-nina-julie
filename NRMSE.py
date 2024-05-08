@@ -50,6 +50,10 @@ def split_horizon(predicted_file, target_file, horizon):
 def visualize_daily_rmse(predicted_file, target_file, horizon, power_type='wind'):
     df_combined = split_horizon(predicted_file, target_file, horizon)
     zone = df_combined['zone_key_pred'].iloc[0]
+    if zone == 'US-CAL-CISO':
+        zone_name = 'California'
+    else:
+        zone_name = 'Texas'
 
     if not pd.api.types.is_datetime64_any_dtype(df_combined.index):
         df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
@@ -65,9 +69,9 @@ def visualize_daily_rmse(predicted_file, target_file, horizon, power_type='wind'
     # Plotting daily RMSE
     plt.figure(figsize=(12, 6))
     plt.plot(daily_rmse.index, daily_rmse, linestyle='-', marker='o', color='blue', label='Daily NRMSE')
-    plt.title(f'Daily NRMSE for {zone} - {power_type.capitalize()} Power Production')
+    plt.title(f'Daily NRMSE for {zone_name} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
-    plt.ylabel('RMSE (Normalized by Capacity in MW)')
+    plt.ylabel('NRMSE (Normalized by Capacity in MW)')
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
