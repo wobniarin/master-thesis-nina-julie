@@ -62,7 +62,7 @@ def visualize_combined_nmae(predicted_file, target_file, predicted_daytime_file,
     end_date = pd.Timestamp('2023-08-14', tz=timezone_mapping[zone])
     capacity_mw = (zone_wind_capacity_gw[zone] if power_type == 'wind' else zone_solar_capacity_gw[zone]) * 1000
 
-    # Helper function to plot data
+    #Helper function to plot data
     def plot_data(predicted_file, target_file, label, linestyle):
         df_combined = split_horizon(predicted_file, target_file, horizon)
         df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], utc=True)
