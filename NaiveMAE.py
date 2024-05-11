@@ -69,7 +69,6 @@ def calculate_daily_mrae(df, column_pred, column_naive, column_target):
     daily_mae_pred = df['mae_pred'].resample('D').mean()
     daily_mae_naive = df['mae_naive'].resample('D').mean()
     
-    # Avoid division by zero by replacing zero denominator with NaN
     daily_mrae = daily_mae_pred / daily_mae_naive
 
     return daily_mrae
