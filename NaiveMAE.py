@@ -96,5 +96,3 @@ for predicted_file, target_file in target_predicted_files.items():
 
     results.append((zone_key, nmae_predicted, nmae_naive, mrae_predicted))
 
-# Optionally, add any plotting code here if needed
-# ...
