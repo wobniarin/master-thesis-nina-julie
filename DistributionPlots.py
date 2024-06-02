@@ -65,7 +65,7 @@ def visualize_weekly_data_naive(predicted_file, target_file, naive_file, horizon
     plot_configs = [
         (f'power_production_{power_type}_avg_pred', 'blue', 'Predicted'),
         (f'power_production_{power_type}_avg_target', 'red', 'Target'),
-        (f'naive_forecast', 'orange', 'Naive Forecast')
+        (f'naive_forecast_{power_type}', 'orange', 'Naive Forecast')
     ]
 
     for column_name, color, label in plot_configs:
@@ -75,17 +75,15 @@ def visualize_weekly_data_naive(predicted_file, target_file, naive_file, horizon
     plt.xlabel('Time')
     plt.ylabel('MWh')
     plt.grid(True)
+    plt.axhline(y=capacity, color='green', linestyle='--', linewidth=2, label='Max Capacity')
     plt.legend(loc='upper right')
     plt.xticks(rotation=45)
     
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     plt.gca().xaxis.set_major_locator(mdates.DayLocator())
-
-    # Add a horizontal line at the maximum capacity
-    plt.axhline(y=capacity, color='green', linestyle='--', linewidth=2, label='Max Capacity')
     
     # Set the y-axis range
-    plt.ylim(-10, 10000)  # Adjusting y-axis range to correspond to max capacities
+    plt.ylim(-10, 38000)  # Adjusting y-axis range to correspond to max capacities
     
     plt.tight_layout()
     plt.show()
@@ -127,7 +125,7 @@ def visualize_weekly_data(predicted_file, target_file, horizon, power_type, week
     plt.legend(loc='upper right')
     
     # Set the y-axis range
-    plt.ylim(-10, 15000)
+    plt.ylim(-10, 10000)
     
     plt.tight_layout()
     plt.show()
@@ -135,8 +133,8 @@ def visualize_weekly_data(predicted_file, target_file, horizon, power_type, week
 
 
 for predicted_file, target_file in target_predicted_files_TEX.items():
-    visualize_weekly_data_naive(predicted_file, target_file, naive_TEX, 24, 'solar', week_start='2023-08-01', week_end='2023-08-15', capacity=US_TEX_ERCO_solar_capacity, zone='Texas')
-    #visualize_weekly_data_naive(predicted_file, target_file, naive_TEX, 24, 'wind', week_start='2023-08-01', week_end='2023-08-15', capacity=US_TEX_ERCO_wind_capacity, zone='Texas')
+    #visualize_weekly_data_naive(predicted_file, target_file, naive_TEX, 24, 'solar', week_start='2023-08-01', week_end='2023-08-15', capacity=US_TEX_ERCO_solar_capacity, zone='Texas')
+    visualize_weekly_data_naive(predicted_file, target_file, naive_TEX, 24, 'wind', week_start='2023-08-01', week_end='2023-08-15', capacity=US_TEX_ERCO_wind_capacity, zone='Texas')
 
     #visualize_weekly_data(predicted_file, target_file, 24, 'solar', week_start='2023-08-01', week_end='2023-08-14', capacity=US_TEX_ERCO_solar_capacity, zone='Texas')
     #visualize_weekly_data(predicted_file, target_file, 24, 'wind', week_start='2023-08-01', week_end='2023-08-14', capacity=US_TEX_ERCO_wind_capacity, zone='Texas')

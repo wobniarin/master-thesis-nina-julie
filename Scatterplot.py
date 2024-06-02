@@ -13,7 +13,7 @@ target_predicted_files = {
 def split_horizon(predicted_file, target_file, horizon):
     table = pq.read_table(predicted_file)
     df_predicted = table.to_pandas()
-    df_predicted = df_predicted[df_predicted["horizon"] == horizon].copy() #måske slet at det er en kopi?
+    df_predicted = df_predicted[df_predicted["horizon"] == horizon].copy() 
 
     table = pq.read_table(target_file)
     df_target = table.to_pandas()
@@ -34,14 +34,15 @@ def split_df_date(df_predicted, df_target, week_start, week_end):
 
     return predicted_week, target_week
 
-def plot(x_value, y_value):
+def plot(x_value, y_value, power_type):
     max_y = max(y_value)
     max_x = max(x_value)
     maximum_y_or_x = max(max_y, max_x)
     plt.plot([0, maximum_y_or_x], [0, maximum_y_or_x], color='red')
     plt.scatter(x_value, y_value, s=10)
-    plt.ylabel('Target')
-    plt.xlabel('Predicted')
+    plt.title(f'Scatterplot for {power_type} in Texas (24 hour horizon)') #change zone name accordingly
+    plt.ylabel('Target (MWh)')
+    plt.xlabel('Predicted (MWh)')
     #plt.xlim(0, 28000)
     #plt.ylim(0, 28000)
     print(plt.show())
@@ -63,8 +64,9 @@ def scatter_wind(predicted_file, target_file):
     
     x = df_predicted_wind["power_production_wind_avg"].values
     y = df_target_wind["power_production_wind_avg"].values
-    plot(x,y)
+    plot(x,y, power_type='wind')
 
+"""
 def scatter_wind_monthly(predicted_file, target_file, month):
     predicted_file = predicted_file.copy()
     target_file = target_file.copy()
@@ -94,6 +96,7 @@ def scatter_wind_monthly(predicted_file, target_file, month):
     y = df_target_wind["power_production_wind_avg"].values
 
     plot(x,y)
+"""
 
 def scatter_solar(predicted_file, target_file):
     predicted_file = predicted_file.copy()
@@ -111,16 +114,18 @@ def scatter_solar(predicted_file, target_file):
 
     x = df_predicted_solar["power_production_solar_avg"].values
     y = df_target_solar["power_production_solar_avg"].values
-    plot(x,y)
+    plot(x,y, power_type='solar')
 
 if __name__ == "__main__": #So code only runs when in this file, not when imported.
     for predicted_file, target_file in target_predicted_files.items():
+        
         df_predicted_24, df_target_24 = split_horizon(predicted_file, target_file, 24)
-        df_predicted_24, df_target_24 = split_df_date(df_predicted=df_predicted_24, df_target=df_target_24, week_start='2023-08-01', week_end='2023-08-14')
+        #df_predicted_24, df_target_24 = split_df_date(df_predicted=df_predicted_24, df_target=df_target_24, week_start='2023-08-01', week_end='2023-08-14')
         
         #scatter_wind_monthly(df_predicted_12, df_target_12, 1)
         #scatter_wind(df_predicted_12, df_target_12)
         #scatter_solar(df_predicted_12, df_target_12)
+        
         
         scatter_wind(df_predicted_24, df_target_24)
         scatter_solar(df_predicted_24, df_target_24)
