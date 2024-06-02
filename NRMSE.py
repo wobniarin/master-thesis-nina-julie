@@ -50,13 +50,17 @@ def split_horizon(predicted_file, target_file, horizon):
 def visualize_daily_rmse(predicted_file, target_file, horizon, power_type='wind'):
     df_combined = split_horizon(predicted_file, target_file, horizon)
     zone = df_combined['zone_key_pred'].iloc[0]
+    if zone == 'US-CAL-CISO':
+        zone_name = 'California'
+    else:
+        zone_name = 'Texas'
 
     if not pd.api.types.is_datetime64_any_dtype(df_combined.index):
         df_combined['target_time'] = pd.to_datetime(df_combined['target_time'], unit='ms', utc=True)
         df_combined.set_index('target_time', inplace=True)
 
     capacity_mw = (zone_wind_capacity_gw[zone] if power_type == 'wind' else zone_solar_capacity_gw[zone]) * 1000
-    df_combined['error'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target']) * 1000
+    df_combined['error'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
     df_combined['squared_error'] = df_combined['error'] ** 2
 
     # Calculate daily RMSE normalized by capacity in MW
@@ -65,9 +69,9 @@ def visualize_daily_rmse(predicted_file, target_file, horizon, power_type='wind'
     # Plotting daily RMSE
     plt.figure(figsize=(12, 6))
     plt.plot(daily_rmse.index, daily_rmse, linestyle='-', marker='o', color='blue', label='Daily NRMSE')
-    plt.title(f'Daily NRMSE for {zone} - {power_type.capitalize()} Power Production')
+    plt.title(f'Daily NRMSE for {zone_name} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
-    plt.ylabel('RMSE (Normalized by Capacity in MW)')
+    plt.ylabel('NRMSE (Normalized by Capacity in MW)')
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
@@ -75,4 +79,4 @@ def visualize_daily_rmse(predicted_file, target_file, horizon, power_type='wind'
 
 # Call the visualization function
 for predicted_file, target_file in target_predicted_files.items():
-    visualize_daily_rmse(predicted_file, target_file, 24, 'solar')
+    visualize_daily_rmse(predicted_file, target_file, 24, 'wind')

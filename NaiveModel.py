@@ -20,10 +20,10 @@ def convert_to_local_time(df, zone_key):
     return df
 
 # Define the specific period
-start_date = pd.Timestamp('2023-08-01', tz='UTC')
-end_date = pd.Timestamp('2023-08-14', tz='UTC')
+start_date = pd.Timestamp('2023-12-30', tz='UTC')
+end_date = pd.Timestamp('2024-01-16', tz='UTC')
 
-# Assume the frequency of data recording is every half hour
+#Assume the frequency of data recording is every half hour
 shift_periods = 96  # 48 hours * 2 half-hours per hour
 
 # Process each file
@@ -39,14 +39,15 @@ for zone_key, file_path in target_files.items():
     df_period = df[(df['target_time'] >= start_date.tz_convert(timezone_mapping[zone_key])) & 
                    (df['target_time'] <= end_date.tz_convert(timezone_mapping[zone_key]))]
     
-    # For naive forecast, shift the values by the correct number of periods
-    # Ensure sorting by target_time before shifting
+    # For naive forecast, shift the values by the correct number of periode
     df_period = df_period.sort_values('target_time')
-    df_period['naive_forecast'] = df_period.groupby(['zone_key'])['power_production_wind_avg'].shift(shift_periods)
-    
-    # Save the result to a new file or handle it as needed
+    df_period['naive_forecast_solar'] = df_period.groupby(['zone_key'])['power_production_solar_avg'].shift(shift_periods) #change between solar/wind
+    df_period['naive_forecast_wind'] = df_period.groupby(['zone_key'])['power_production_wind_avg'].shift(shift_periods)
+
+    # Save the result to a new file
     output_file_path = f'naive_forecast_{zone_key}.parquet'
     df_period.to_parquet(output_file_path, index=False)
     print(f"Naive forecast for {zone_key} saved to {output_file_path}")
+
 
 

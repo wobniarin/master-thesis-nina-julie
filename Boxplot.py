@@ -1,23 +1,27 @@
 import matplotlib.pyplot as plt
 import pyarrow.parquet as pq
-from ExcludeNighttime import exclude_nighttimes
 
 target_files = [
     'data/target_and_predicted/US-CAL-CISO_target.parquet',
     'data/target_and_predicted/US-TEX-ERCO_target.parquet',
 ]
 
+zone_capacity_mw = {
+    'US-CAL-CISO': {'solar': 19700, 'wind': 6030},
+    'US-TEX-ERCO': {'solar': 13500, 'wind': 37000},
+}
+
 def split_solar_wind(list_files):
     list = []
     
     for file in list_files:
+        zone = file.split('/')[-1].split('_')[0] 
         table = pq.read_table(file)
         df_target = table.to_pandas()
         
-
-        df_target_wind = df_target["power_production_wind_avg"].values
-        #df_target_solar = df_target["power_production_solar_avg"].values
-        df_target_solar = df_target[df_target["power_production_solar_avg"] != 0]["power_production_solar_avg"].values 
+        df_target_wind = df_target["power_production_wind_avg"].values / zone_capacity_mw[zone]['wind']
+        #df_target_solar = df_target["power_production_solar_avg"].values # with night hours
+        df_target_solar = df_target[df_target["power_production_solar_avg"] != 0]["power_production_solar_avg"].values / zone_capacity_mw[zone]['solar'] #with night hours excluded
         
         list.append(df_target_wind)
         list.append(df_target_solar)
@@ -39,10 +43,10 @@ for i in range(len(target_values_list)):
     plt.boxplot(target_values_list[i], positions=[position])
 
 # Set x-axis labels and title
-plt.xticks([i * 1.5 + 1 for i in range(len(target_files) * 2)], ['Wind (US-CAL-CISO)', 'Solar (US-CAL-CISO)', 'Wind (US-TEX-ERCO)', 'Solar (US-TEX-ERCO)'])
-plt.xlabel('Target Values')
-plt.ylabel('Values')
-plt.title('Boxplot of Target Values')
+plt.xticks([i * 1.5 + 1 for i in range(len(target_files) * 2)], ['Wind (California)', 'Solar (California)', 'Wind (Texas)', 'Solar (Texas)'])
+plt.xlabel('Forecast models')
+plt.ylabel('relative value (target values normalized by dividing with installed capacity)')
+plt.title('Boxplot of normalized target values for the four forecast models')
 
 # Show the plot
 plt.show()
