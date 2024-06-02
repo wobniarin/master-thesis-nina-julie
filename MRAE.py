@@ -85,7 +85,7 @@ def visualize_daily_mrae(predicted_file, target_file):
     else:
         zone_name = 'Texas'
 
-    power_type = 'solar'  # This can be set to wind/solar
+    power_type = 'wind'  # This can be set to wind/solar
 
     #finding the right max capacity
     capacity_mw = zone_capacity_mw[zone_key][power_type]
@@ -105,14 +105,15 @@ def visualize_daily_mrae(predicted_file, target_file):
     df_combined.set_index('target_time', inplace=True)
 
     # Calculate daily MRAE
-    daily_mrae = calculate_daily_mrae(df_combined, f'power_production_{power_type}_avg_pred', 'naive_forecast', f'power_production_{power_type}_avg_target')
+    daily_mrae = calculate_daily_mrae(df_combined, f'power_production_{power_type}_avg_pred', f'naive_forecast_{power_type}', f'power_production_{power_type}_avg_target')
 
     # Plotting daily NMAE
     plt.figure(figsize=(12, 6))
     plt.plot(daily_mrae.index, daily_mrae, linestyle='-', marker='o', color='blue', label='Daily MRAE')
-    plt.title(f'MRAE for {zone_name} - {power_type.capitalize()} Power Production')
+    plt.title(f'Daily MRAE for {zone_name} - {power_type.capitalize()} Power Production')
     plt.xlabel('Date')
-    plt.ylabel('MRAE')
+    plt.ylabel('Logarithmic MRAE')
+    plt.yscale('log')  # Set the y-axis to logarithmic scale
     # Set x-ticks to be every day and format the dates
     plt.grid(True)
     plt.axhline(y=1, color='green', linestyle='--', linewidth=2, label='Line of equal performance between the two models')

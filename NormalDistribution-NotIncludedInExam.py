@@ -58,7 +58,6 @@ def split_solar_wind(list_files):
 def plot_normal_distributions(data_list):
     # Determine common axis limits
 
-    
     for data_dict in data_list:
         # Plot for solar
         plt.subplot(1, 2, 1)  # 1 row, 2 columns, 1st subplot
