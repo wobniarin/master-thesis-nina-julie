@@ -46,7 +46,7 @@ def split_horizon(df_predicted, df_target):
     df_combined = pd.merge(df_predicted, df_target, on='target_time', suffixes=('_pred', '_target'))
     
     start_date = pd.Timestamp('2024-01-01', tz=timezone_mapping[zone_key])
-    end_date = pd.Timestamp('2024-01-13', tz=timezone_mapping[zone_key])
+    end_date = pd.Timestamp('2024-01-15', tz=timezone_mapping[zone_key])
     
     df_combined = df_combined[(df_combined['target_time'] >= start_date) & (df_combined['target_time'] <= end_date)]
     df_combined.set_index('target_time', inplace=True)
@@ -61,6 +61,7 @@ def nmae(df_combined):
     for power_type in power_types:
         df_combined[f'abs_error_{power_type}'] = np.abs(df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
         
+        
         # If the power type is 'solar', exclude entries where predicted values are zero
         if power_type == 'solar':
             # Filter out rows where the predicted solar production is zero
@@ -70,13 +71,13 @@ def nmae(df_combined):
         else:
             # Calculate NRMSE normally for other types
             df_combined[f'nmae_{power_type}'] = df_combined[f'abs_error_{power_type}'].resample('D').mean() / zone_capacity_mw[zone][power_type]
+        """
 
 
-
-        #df_combined[f'abs_error_{power_type}'] = np.abs(df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
-        #capacity = zone_capacity_mw[zone][power_type]
-        #df_combined[f'nmae_{power_type}'] = df_combined[f'abs_error_{power_type}'].resample('D').mean() / capacity
-        
+        df_combined[f'abs_error_{power_type}'] = np.abs(df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
+        capacity = zone_capacity_mw[zone][power_type]
+        df_combined[f'nmae_{power_type}'] = df_combined[f'abs_error_{power_type}'].resample('D').mean() / capacity
+        """
     return df_combined
 
 
@@ -115,6 +116,7 @@ def nrmdse(df_combined):
     for power_type in power_types:
         df_combined[f'error_{power_type}'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
         
+        
         # If the power type is 'solar', exclude entries where predicted values are zero
         if power_type == 'solar':
             # Filter out rows where the predicted solar production is zero
@@ -124,12 +126,12 @@ def nrmdse(df_combined):
         else:
             # Calculate NRMSE normally for other types
              df_combined[f'nrmdse_{power_type}'] = np.sqrt((df_combined[f'error_{power_type}'] ** 2).resample('D').median()) / zone_capacity_mw[zone][power_type]
+        """
 
-
-        #df_combined[f'error_{power_type}'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
-        #capacity = zone_capacity_mw[zone][power_type]
-        #df_combined[f'nrmdse_{power_type}'] = np.sqrt((df_combined[f'error_{power_type}'] ** 2).resample('D').median()) / capacity
-        
+        df_combined[f'error_{power_type}'] = (df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
+        capacity = zone_capacity_mw[zone][power_type]
+        df_combined[f'nrmdse_{power_type}'] = np.sqrt((df_combined[f'error_{power_type}'] ** 2).resample('D').median()) / capacity
+        """
     return df_combined
 
 

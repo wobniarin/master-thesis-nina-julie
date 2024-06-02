@@ -87,21 +87,14 @@ def visualize_daily_spearman(predicted_file, target_file, horizon, power_type='s
     #sets 'target_time' as the index for dataframe
     df_combined.set_index('target_time', inplace=True)
 
-    # Calculate absolute error in MW, between the predicted and target power production values for each row and adds it as a new column named 'abs_error'
-    df_combined['abs_error'] = np.abs(df_combined[f'power_production_{power_type}_avg_pred'] - df_combined[f'power_production_{power_type}_avg_target'])
-
     # Prepare daily data without aggregating into a single mean or sum
     df_daily = df_combined.resample('D')
 
     daily_spearman = []
     # Iterating over each day as a group
     for date, group in df_daily:
-        if len(group) > 1:  # Ensure there's enough data to compute Spearman
-            spearman_corr, pvalue = spearmanr(group[f'power_production_{power_type}_avg_target'], group['abs_error'])
-            daily_spearman.append(spearman_corr)
-        else:
-            daily_spearman.append(np.nan)  # Append NaN if not enough data
-    
+        spearman_corr, pvalue = spearmanr(group[f'power_production_{power_type}_avg_target'], group[f'power_production_{power_type}_avg_pred'])
+        daily_spearman.append(spearman_corr)    
         
     # Plotting daily Spearman
     plt.figure(figsize=(12, 6))
